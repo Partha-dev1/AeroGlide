@@ -1,0 +1,58 @@
+# ============================================================
+# AeroGlide — .gitignore
+# ============================================================
+
+# ── Environment Variables (NEVER commit credentials) ─────────
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+server/.env
+
+# ── Node Modules ──────────────────────────────────────────────
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# ── Build Outputs ─────────────────────────────────────────────
+.next/
+dist/
+build/
+out/
+
+# ── TypeScript Build Cache ─────────────────────────────────────
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+client/tsconfig.tsbuildinfo
+
+# ── Logs ──────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# ── OS Files ──────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE / Editor ──────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# ── Testing ───────────────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ── Supabase CLI ──────────────────────────────────────────────
+.supabase/
+**/supabase/.temp/
+
+# ── Misc ──────────────────────────────────────────────────────
+*.pem
+.cache/
+scratch/

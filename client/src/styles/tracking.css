@@ -1,0 +1,349 @@
+/* Flight Status Progress Tracker Styles (from utilities.css) */
+
+.tracking-wrapper {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.tracking-search-form {
+  padding: 2rem;
+  border-radius: 1.25rem;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  backdrop-filter: blur(16px);
+}
+
+.tracking-search-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.tracking-search-subtitle {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.tracking-search-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.tracking-search-input {
+  font-size: 1rem;
+}
+
+.tracking-search-btn {
+  flex-shrink: 0;
+}
+
+.tracking-search-error {
+  margin-top: 1rem;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tracking-loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 3rem;
+  border-radius: 1.25rem;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.tracking-card {
+  padding: 2rem;
+  border-radius: 1.25rem;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(14, 160, 234, 0.2);
+  box-shadow: 0 0 30px rgba(14, 160, 234, 0.15);
+  backdrop-filter: blur(16px);
+}
+
+.tracking-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.tracking-flight-num-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tracking-airline-label {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tracking-flight-code {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.tracking-live-telemetry-tag {
+  display: inline-block;
+  font-size: 0.75rem;
+  color: #0ea0ea;
+  background: rgba(14, 160, 234, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+.tracking-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.pulse-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  position: relative;
+}
+
+.pulse-indicator::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  animation: pulse 1.5s ease-out infinite;
+  opacity: 0.8;
+}
+
+@keyframes pulse {
+  to {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.badge-status-inair {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.badge-status-boarding {
+  color: #e2e8f0;
+  background: rgba(226, 232, 240, 0.1);
+  border: 1px solid rgba(226, 232, 240, 0.2);
+}
+
+.badge-status-completed {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-status-delayed {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-status-scheduled {
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+/* Timeline Components */
+.tracking-timeline-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2.5rem;
+}
+
+.tracking-timeline-hub {
+  display: flex;
+  flex-direction: column;
+  width: 7.5rem;
+}
+
+.tracking-timeline-hub.left {
+  align-items: flex-start;
+}
+
+.tracking-timeline-hub.right {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.tracking-timeline-iata {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #f8fafc;
+  line-height: 1;
+}
+
+.tracking-timeline-label {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin-top: 0.25rem;
+}
+
+.tracking-timeline-terminal, .tracking-timeline-gate {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  margin-top: 0.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.tracking-timeline-vector {
+  flex-grow: 1;
+  margin: 0 1.5rem;
+  position: relative;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.tracking-vector-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+}
+
+.tracking-vector-fill {
+  position: absolute;
+  left: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #0ea0ea, #38bdf8);
+  border-radius: 2px;
+  box-shadow: 0 0 10px rgba(14, 160, 234, 0.5);
+  width: var(--progress, 0%);
+}
+
+.tracking-airplane-anchor {
+  position: absolute;
+  transform: translate(-50%, -50%) rotate(90deg);
+  top: 50%;
+  font-size: 1.25rem;
+  z-index: 10;
+  transition: left 0.5s ease-in-out;
+  left: var(--airplane-left, 0%);
+}
+
+.tracking-airplane-anchor.in-air-glow {
+  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.8));
+  color: #38bdf8;
+}
+
+.tracking-airplane-anchor.parked {
+  transform: translate(-50%, -50%);
+  color: #475569;
+}
+
+.tracking-vector-percentage {
+  position: absolute;
+  bottom: -1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+/* Metrics Grid Panel */
+.tracking-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.tracking-metric-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tracking-metric-item:last-child {
+  border-right: none;
+}
+
+.metric-icon {
+  font-size: 1.5rem;
+}
+
+.metric-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.metric-value {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: #f8fafc;
+}
+
+.metric-label {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+/* Footer alerts */
+.tracking-card-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 1.25rem;
+}
+
+.tracking-delay-alert {
+  color: #fbbf24;
+  font-size: 0.875rem;
+}
+
+.tracking-ontime-alert {
+  color: #34d399;
+  font-size: 0.875rem;
+}

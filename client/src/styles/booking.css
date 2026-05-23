@@ -1,0 +1,190 @@
+/* Forms & Seatmap Layouts Styling */
+
+/* Input Styles from forms.css */
+.form-input {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  transition: all 0.2s ease;
+  width: 100%;
+  backdrop-filter: blur(10px);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #0ea0ea;
+  box-shadow: 0 0 0 2px rgba(14, 160, 234, 0.2);
+}
+
+.form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+}
+
+/* Autocomplete Custom CSS */
+.autocomplete-container {
+  position: relative;
+  width: 100%;
+}
+
+.autocomplete-input {
+  padding-right: 2.5rem; /* Make space for the loading spinner */
+}
+
+.autocomplete-spinner {
+  position: absolute;
+  right: 0.875rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.spinner-mini {
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #0ea0ea;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+.autocomplete-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  margin-top: 0.5rem;
+  max-height: 18rem;
+  overflow-y: auto;
+  border-radius: 0.75rem;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  padding: 0.5rem 0;
+  list-style: none;
+}
+
+.autocomplete-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.autocomplete-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.autocomplete-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+.autocomplete-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.autocomplete-item:hover {
+  background: rgba(14, 160, 234, 0.15);
+}
+
+.autocomplete-item-main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0; /* truncate child safely */
+}
+
+.autocomplete-iata {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: #0ea0ea;
+  background: rgba(14, 160, 234, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid rgba(14, 160, 234, 0.2);
+  flex-shrink: 0;
+}
+
+.autocomplete-item-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.autocomplete-city-country {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.autocomplete-country {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.autocomplete-name {
+  font-size: 0.75rem;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.autocomplete-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 0.75rem;
+  color: #64748b;
+  flex-shrink: 0;
+  text-align: right;
+  gap: 0.25rem;
+}
+
+.autocomplete-icao {
+  font-family: monospace;
+  color: #475569;
+}
+
+.autocomplete-timezone {
+  color: #475569;
+}
+
+.autocomplete-no-results {
+  padding: 1rem;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+/* Interactive Seat Styles from seatmap.css */
+.seat-btn {
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.seat-btn:hover:not(:disabled) {
+  transform: scale(1.15);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

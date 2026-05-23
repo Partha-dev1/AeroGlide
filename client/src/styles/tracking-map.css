@@ -1,0 +1,114 @@
+/* Leaflet Map, Plane Markers, and Path Visualizations */
+
+.tracking-map-wrapper {
+  position: relative;
+  width: 100%;
+  height: 380px;
+  border-radius: 1.25rem;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0f172a;
+  box-shadow: inset 0 2px 20px rgba(0, 0, 0, 0.8);
+}
+
+.tracking-map-container {
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Custom Marker Styling */
+.map-airport-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1.5px solid #0ea5e9;
+  border-radius: 50%;
+  color: #38bdf8;
+  font-weight: 800;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  box-shadow: 0 0 10px rgba(14, 165, 233, 0.4);
+  transition: all 0.3s ease;
+}
+
+.map-airport-marker.origin {
+  border-color: #10b981;
+  color: #34d399;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+.map-airport-marker:hover {
+  transform: scale(1.15);
+  z-index: 999;
+}
+
+/* Custom Animated Plane Marker */
+.map-plane-marker {
+  color: #38bdf8;
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.9));
+  transform-origin: center;
+  transition: transform 0.5s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-plane-marker svg {
+  transform: rotate(45deg); /* Offset plane icon if standard icon points up-right */
+}
+
+/* Pulse Glows */
+.pulse-ring-glow {
+  position: absolute;
+  border: 2px solid #0ea5e9;
+  border-radius: 50%;
+  height: 100%;
+  width: 100%;
+  animation: pulse-ring 1.8s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pulse-ring-glow.origin {
+  border-color: #10b981;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.6); opacity: 0; }
+  50% { opacity: 0.5; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* Map Popups and Overlays */
+.leaflet-popup-content-wrapper {
+  background: rgba(15, 23, 42, 0.95) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5) !important;
+}
+
+.leaflet-popup-tip {
+  background: rgba(15, 23, 42, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.leaflet-popup-content {
+  font-family: var(--font-sans), sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.4 !important;
+  margin: 10px 12px !important;
+}
+
+.map-popup-title {
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 2px;
+}
+
+.map-popup-desc {
+  color: #94a3b8;
+}

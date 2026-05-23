@@ -1,0 +1,95 @@
+/* Premium Responsive Adaptation Stylesheet */
+
+@media (max-width: 1024px) {
+  /* Adjust seat map cabin spacing and layout for tablets */
+  .cabin-container {
+    padding: 1rem;
+    overflow-x: auto;
+  }
+  
+  .cabin-row-grid {
+    gap: 0.5rem;
+  }
+  
+  .seat-btn-cell {
+    width: 2.25rem;
+    height: 2.25rem;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Fluid sizing adjustments for mobile devices */
+  .hero-title-responsive {
+    font-size: 2.25rem;
+    line-height: 2.75rem;
+  }
+  
+  .grid-results-layout {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .booking-flow-card {
+    padding: 1.25rem;
+    border-radius: 1rem;
+  }
+
+  /* Responsive Seat Map adjustments */
+  .seat-btn-cell {
+    width: 1.85rem;
+    height: 1.85rem;
+    font-size: 0.7rem;
+    border-radius: 0.25rem;
+  }
+  
+  .seat-row-label {
+    width: 1.25rem;
+    font-size: 0.75rem;
+  }
+
+  .seat-selection-legend {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  /* Dynamic Dashboard table stack */
+  .dashboard-table-responsive {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Bottom Actions Bar */
+  .floating-checkout-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(15px);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 1rem;
+    z-index: 40;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.5);
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-title-responsive {
+    font-size: 1.85rem;
+    line-height: 2.25rem;
+  }
+  
+  .seat-btn-cell {
+    width: 1.65rem;
+    height: 1.65rem;
+    font-size: 0.65rem;
+  }
+  
+  .cabin-aisle {
+    width: 1rem !important;
+  }
+}
