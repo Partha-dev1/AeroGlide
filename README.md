@@ -434,7 +434,107 @@ AeroGlide has been optimized to ensure full responsiveness across all viewports 
 * **Collapsible Mobile Menu**: NavbarHeader collapses automatically on small screens. A responsive menu drawer is triggered via an animated hamburger toggle button, housing search, booking, profile, and auth options.
 * **Fluid Layouts**: Replaced fixed-width components with responsive flex, grid (`grid-cols-1 md:grid-cols-2 lg:grid-cols-3`), and auto-scaling padding tokens.
 * **Map & Widget Stacking**: Realtime Leaflet telemetry trackers and seat map selection grids scale fluidly on mobile viewports, stacking sidebars underneath widgets to maintain full touch interactivity.
+
 * **Table Adaptations**: Passenger manifests, boarding details, and booking list rows wrap into compact stacking cards on mobile devices, ensuring no overflow clipping.
 
+---
 
+## 🧰 Tech Stack
 
+| Layer | Technology |
+| :--- | :--- |
+| **Frontend** | Next.js 14 (App Router), React 18, TypeScript, TailwindCSS, Zustand |
+| **Backend** | Node.js, Express.js, TypeScript |
+| **Database** | Supabase (PostgreSQL), Row-Level Security, Realtime |
+| **Auth** | Supabase Auth (GoTrue), PKCE flow |
+| **Caching** | In-memory AviationCache + localStorage Zustand persist |
+| **Maps / Tracking** | Leaflet.js, dynamic transponder simulation |
+| **Flight GDS** | Amadeus API (with realistic local fallback generator) |
+| **Deployment** | Vercel (frontend), Render (backend) |
+| **Testing** | Puppeteer E2E, programmatic integration test suite |
+
+---
+
+## ⚡ Quick Start (Local Development)
+
+### Prerequisites
+- Node.js v18+
+- npm v9+
+- A Supabase project (free tier works)
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/Partha-dev1/AeroGlide.git
+cd AeroGlide
+```
+
+### 2. Install All Dependencies
+```bash
+npm run install:all
+```
+
+### 3. Configure Environment Variables
+```bash
+# Server environment
+cp server/.env.example server/.env
+# Edit server/.env with your Supabase credentials
+
+# Client environment
+cp client/.env.example client/.env.local
+# Edit client/.env.local with your Supabase credentials
+```
+
+### 4. Run Database Migrations
+```bash
+# Push the schema to your Supabase project
+npx supabase link --project-ref <your-project-ref>
+npx supabase db push
+```
+
+### 5. Start Development Servers
+```bash
+# Terminal 1 — Backend API (port 5000)
+npm run dev:server
+
+# Terminal 2 — Frontend (port 3001)
+npm run dev:client
+```
+
+### 6. Run E2E Integration Tests
+```bash
+# Programmatic backend API flow test
+node server/test-flow.js
+
+# Headless Puppeteer UI test
+node client/e2e.test.js
+```
+
+---
+
+## 🌐 Production Deployment
+
+### Frontend → Vercel
+1. Connect the [GitHub repo](https://github.com/Partha-dev1/AeroGlide.git) to your Vercel project.
+2. Set **Root Directory** to `client`.
+3. Add environment variables:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `NEXT_PUBLIC_API_URL` (your Render backend URL)
+
+### Backend → Render
+1. Create a new **Web Service** from the same GitHub repo.
+2. Set **Root Directory** to `server`.
+3. **Build Command:** `npm install && npm run build`
+4. **Start Command:** `npm start`
+5. Add environment variables:
+   - `DATABASE_URL`
+   - `SUPABASE_URL`
+   - `SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `NODE_ENV=production`
+
+---
+
+## 📄 License
+
+MIT © [Partha-dev1](https://github.com/Partha-dev1)

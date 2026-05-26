@@ -26,32 +26,14 @@ export async function authMiddleware(req: AuthenticatedRequest, res: Response, n
     // Fallback: If it's a mock token or Supabase is not enabled
     if (token.startsWith('mock-token-') || !useSupabase || !supabase) {
       const mockUserId = token.startsWith('mock-token-') 
-        ? getDeterministicUuid(token) 
-        : getDeterministicUuid('mock-sandbox-user-id');
-      
-      // If Supabase is enabled, ensure mock user exists in the public.users table to prevent FK violations
-      if (useSupabase) {
-        try {
-          const { supabaseAdmin } = require('../config/supabase');
-          if (supabaseAdmin) {
-            const emailValue = token.startsWith('mock-token-') 
-              ? `${token.replace('mock-token-', '')}@domain.in` 
-              : 'mock.user@domain.in';
-            await supabaseAdmin.from('users').upsert({
-              id: mockUserId,
-              email: emailValue,
-              full_name: 'QA Engineer',
-              updated_at: new Date().toISOString()
-            }, { onConflict: 'id' });
-          }
-        } catch (dbErr: any) {
-          console.error('⚠️ Failed to upsert mock user profile into public.users:', dbErr.message);
-        }
-      }
+        ? token.replace('mock-token-', '') 
+        : 'mock-sandbox-user-id';
 
       req.user = {
         id: mockUserId,
-        email: 'mock.user@domain.in'
+        email: token.startsWith('mock-token-') 
+          ? `${mockUserId}@domain.in` 
+          : 'mock.user@domain.in'
       };
       return next();
     }

@@ -152,7 +152,9 @@ class FlightApiService {
     bookingId: string,
     newFlightId: string,
     newSeatIds: string[],
-    lockSession: string
+    lockSession: string,
+    customDepartureTime?: string,
+    customArrivalTime?: string
   ): Promise<{ success: boolean; message: string }> {
     return this.request<{ success: boolean; message: string }>(`/api/bookings/reschedule`, {
       method: 'POST',
@@ -161,6 +163,8 @@ class FlightApiService {
         new_flight_id: newFlightId,
         new_seat_ids: newSeatIds,
         lock_session: lockSession,
+        custom_departure_time: customDepartureTime,
+        custom_arrival_time: customArrivalTime,
       }),
     });
   }

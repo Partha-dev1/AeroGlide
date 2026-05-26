@@ -37,6 +37,16 @@ async function logStep(title, fn) {
 async function runTest() {
   console.log("✈️ Starting AeroGlide Automated Integration Test...");
 
+  // ─── PRE-TEST: Reset in-memory state for a clean run ───
+  await logStep('Reset In-Memory State (Clean Slate)', async () => {
+    const res = await fetch(`${API_BASE}/test/reset`, { method: 'POST', headers });
+    if (!res.ok) {
+      console.warn('⚠️ Reset endpoint not available — proceeding anyway.');
+      return null;
+    }
+    return await res.json();
+  });
+
   // ─── STEP 1: Search domestic flights DEL -> BOM ───
   const flights = await logStep('Search Flights (DEL ➔ BOM)', async () => {
     const res = await fetch(`${API_BASE}/flights?origin=DEL&destination=BOM&date=2026-05-30`);

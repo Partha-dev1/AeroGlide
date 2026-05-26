@@ -47,6 +47,7 @@ export function NavbarHeader() {
           {/* Desktop Nav Links */}
           <nav className="hidden md:flex items-center space-x-1">
             <Link 
+              id="search-nav-link"
               href="/" 
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isActive('/') ? 'text-primary-400 bg-white/5' : 'text-slate-300 hover:text-white hover:bg-white/5'
@@ -59,6 +60,7 @@ export function NavbarHeader() {
             </Link>
             
             <Link 
+              id="bookings-nav-link"
               href="/my-bookings" 
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isActive('/my-bookings') ? 'text-primary-400 bg-white/5' : 'text-slate-300 hover:text-white hover:bg-white/5'
@@ -72,6 +74,7 @@ export function NavbarHeader() {
 
             {userId && (
               <Link 
+                id="profile-nav-link"
                 href="/profile" 
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   isActive('/profile') ? 'text-primary-400 bg-white/5' : 'text-slate-300 hover:text-white hover:bg-white/5'
@@ -105,6 +108,7 @@ export function NavbarHeader() {
                   Welcome, <span className="text-white font-semibold">{userName}</span>
                 </span>
                 <button
+                  id="logout-nav-btn"
                   onClick={logoutUser}
                   className="flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium border border-white/10 text-slate-300 hover:text-white hover:bg-white/5 transition"
                 >
@@ -114,6 +118,7 @@ export function NavbarHeader() {
               </div>
             ) : (
               <button
+                id="login-nav-btn"
                 onClick={() => setShowLoginModal(true)}
                 className="flex items-center space-x-2 px-4.5 py-2.5 rounded-xl text-sm font-semibold bg-primary-500 hover:bg-primary-600 text-white shadow-lg shadow-primary-500/20 hover:shadow-primary-600/30 hover:scale-[1.02] active:scale-[0.98] transition-all"
               >

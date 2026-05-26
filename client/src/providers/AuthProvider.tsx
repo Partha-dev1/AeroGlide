@@ -185,9 +185,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else if (result.session) {
       setSession(result.session);
       setUser(result.user ?? null);
+      
+      const u = result.user ?? result.session.user;
+      if (u) {
+        const name = u.user_metadata?.full_name || u.email?.split('@')[0] || 'Passenger';
+        const nextToken = (result.session as any).access_token ?? '';
+        loginWithSupabase(u.email ?? '', name, nextToken, u.id);
+      }
     }
     return result;
-  }, []);
+  }, [loginWithSupabase]);
 
   const signIn = useCallback(async (email: string, password: string): Promise<AuthResult> => {
     setError(null);
@@ -197,9 +204,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else if (result.session) {
       setSession(result.session);
       setUser(result.user ?? null);
+
+      const u = result.user ?? result.session.user;
+      if (u) {
+        const name = u.user_metadata?.full_name || u.email?.split('@')[0] || 'Passenger';
+        const nextToken = (result.session as any).access_token ?? '';
+        loginWithSupabase(u.email ?? '', name, nextToken, u.id);
+      }
     }
     return result;
-  }, []);
+  }, [loginWithSupabase]);
 
   const signOut = useCallback(async () => {
     setError(null);

@@ -30,6 +30,7 @@ import {
 import { signUpSchema, loginSchema, getPasswordStrength } from '../../validators/authValidationSchema';
 import type { SignUpFormData, LoginFormData } from '../../validators/authValidationSchema';
 import { authService } from '../../services/auth/authService';
+import { useAuthContext } from '../../providers/AuthProvider';
 
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -41,6 +42,7 @@ interface AuthModalProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function AuthModal({ isOpen, onClose, defaultTab = 'login' }: AuthModalProps) {
+  const { signUp, signIn } = useAuthContext();
   const [mode, setMode] = useState<'login' | 'signup'>(defaultTab);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -157,7 +159,7 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'login' }: AuthModalPr
     setNeedsVerification(false);
 
     try {
-      const result = await authService.signIn(data.email, data.password);
+      const result = await signIn(data.email, data.password);
 
       if (!result.success) {
         if (result.isRateLimited) {
@@ -199,7 +201,7 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'login' }: AuthModalPr
     setNeedsVerification(false);
 
     try {
-      const result = await authService.signUp(data.email, data.password, data.fullName);
+      const result = await signUp(data.email, data.password, data.fullName);
 
       if (!result.success) {
         if (result.isRateLimited) {

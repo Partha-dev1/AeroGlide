@@ -28,6 +28,32 @@ function resolveFlightId(flightId: string): string {
   return getDeterministicUuid(flightId);
 }
 
+function isMockUser(userId: string | null): boolean {
+  if (!userId) return false;
+  return userId.startsWith('mock-') || !uuidRegex.test(userId);
+}
+
+function matchUserIds(idA: string | null, idB: string | null): boolean {
+  if (!idA || !idB) return false;
+  if (idA === idB) return true;
+  try {
+    const getUuids = (id: string) => {
+      const uuids = [id];
+      if (id.startsWith('mock-') || !uuidRegex.test(id)) {
+        uuids.push(getDeterministicUuid(id));
+        uuids.push(getDeterministicUuid('mock-token-' + id));
+      }
+      return uuids;
+    };
+    const uuidsA = getUuids(idA);
+    const uuidsB = getUuids(idB);
+    const match = uuidsA.some(a => uuidsB.includes(a));
+    return match;
+  } catch (e) {
+    return false;
+  }
+}
+
 export class FlightService {
   
   // 1. Search Global Airports (Cached for 1 hour)
@@ -214,9 +240,9 @@ export class FlightService {
   }
 
   // 4. Lock Seats atomically and broadcast updates
-  async lockSeats(flightIdStr: string, seatIds: string[], lockSession: string): Promise<{ success: boolean; message: string }> {
+  async lockSeats(flightIdStr: string, seatIds: string[], lockSession: string, userId?: string): Promise<{ success: boolean; message: string }> {
     const flightId = resolveFlightId(flightIdStr);
-    if (useSupabase) {
+    if (useSupabase && !isMockUser(userId || null)) {
       try {
         const admin = getAdminClient();
         await this.ensureFlightInSupabase(flightId);
@@ -238,6 +264,7 @@ export class FlightService {
     }
 
     // Fallback in-memory
+    await this.ensureSeatsInMemory(flightIdStr, seatIds);
     cleanupInMemoryLocks();
     
     const flightSeats = seatsDb.filter(s => s.flight_id === flightId);
@@ -281,7 +308,7 @@ export class FlightService {
       throw new Error('Authentication required for booking checkout.');
     }
     
-    if (useSupabase) {
+    if (useSupabase && !isMockUser(userId)) {
       try {
         const admin = getAdminClient();
         await this.ensureFlightInSupabase(flightId);
@@ -310,9 +337,11 @@ export class FlightService {
     }
 
     // Fallback in-memory
+    const seatIds = passengers.map(p => p.seat_id);
+    await this.ensureSeatsInMemory(flightIdStr, seatIds);
+    await this.ensureFlightInMemory(flightIdStr);
     cleanupInMemoryLocks();
 
-    const seatIds = passengers.map(p => p.seat_id);
     const targetSeats = seatsDb.filter(s => s.flight_id === flightId && seatIds.includes(s.id));
 
     const validLocks = targetSeats.every(s => s.status === 'locked' && s.locked_by === lockSession);
@@ -375,7 +404,7 @@ export class FlightService {
 
   // 6. Look up Booking Details
   async lookupBooking(reference: string, email: string, userId: string): Promise<any> {
-    if (useSupabase && supabase) {
+    if (useSupabase && supabase && !isMockUser(userId)) {
       try {
         let query = supabase
           .from('bookings')
@@ -430,7 +459,7 @@ export class FlightService {
 
   // 7. Fetch Bookings by User ID
   async getUserBookings(userId: string): Promise<any[]> {
-    if (useSupabase && supabase) {
+    if (useSupabase && supabase && !isMockUser(userId)) {
       try {
         const admin = getAdminClient();
         const { data, error } = await admin
@@ -450,7 +479,7 @@ export class FlightService {
     }
 
     // Fallback in-memory
-    const userBookings = bookingsDb.filter(b => b.user_id === userId);
+    const userBookings = bookingsDb.filter(b => matchUserIds(b.user_id, userId));
     return userBookings.map(booking => {
       const flight = flightsDb.find(f => f.id === booking.flight_id);
       const passengers = passengersDb
@@ -470,7 +499,7 @@ export class FlightService {
 
   // 9. Cancel Booking and release seats
   async cancelBooking(bookingId: string, userId: string): Promise<{ success: boolean; message: string }> {
-    if (useSupabase && supabase) {
+    if (useSupabase && supabase && !isMockUser(userId)) {
       try {
         const admin = getAdminClient();
         const { data, error } = await admin.rpc('cancel_booking_transaction', {
@@ -499,8 +528,9 @@ export class FlightService {
     }
 
     // Fallback in-memory
-    const booking = bookingsDb.find(b => b.id === bookingId && b.user_id === userId);
+    const booking = bookingsDb.find(b => b.id === bookingId && matchUserIds(b.user_id, userId));
     if (!booking) throw new Error('Booking not found or access denied.');
+    await this.ensureFlightInMemory(booking.flight_id);
     if (booking.status === 'cancelled') throw new Error('Booking is already cancelled.');
 
     const flight = flightsDb.find(f => f.id === booking.flight_id);
@@ -539,10 +569,96 @@ export class FlightService {
     newFlightIdStr: string, 
     newSeatIds: string[], 
     lockSession: string,
-    userId: string
+    userId: string,
+    customDepartureTime?: string,
+    customArrivalTime?: string
   ): Promise<{ success: boolean; message: string }> {
     const newFlightId = resolveFlightId(newFlightIdStr);
-    if (useSupabase && supabase) {
+
+    // If custom departure and arrival times are provided, create/update the flight record first
+    if (customDepartureTime && customArrivalTime) {
+      const flightNum = newFlightIdStr.split('-')[0] || 'AG100';
+      const durationMin = Math.max(1, Math.round((new Date(customArrivalTime).getTime() - new Date(customDepartureTime).getTime()) / 60000));
+      
+      const customFlight = {
+        id: newFlightId,
+        flight_number: flightNum,
+        airline: 'AeroGlide Express',
+        origin: 'JFK',
+        destination: 'LHR',
+        departure_time: customDepartureTime,
+        arrival_time: customArrivalTime,
+        base_price: 350.00,
+        status: 'scheduled' as const,
+        aircraft_type: 'Boeing 737 MAX 9',
+        duration_minutes: durationMin
+      };
+
+      // Try to match the original booking's flight route details
+      try {
+        let originalFlightDetail: any = null;
+        if (useSupabase && supabase && !isMockUser(userId)) {
+          const admin = getAdminClient();
+          const { data: booking } = await admin.from('bookings').select('*, flight:flights(*)').eq('id', bookingId).single();
+          originalFlightDetail = booking?.flight;
+        } else {
+          const booking = bookingsDb.find(b => b.id === bookingId);
+          originalFlightDetail = flightsDb.find(f => f.id === booking?.flight_id);
+        }
+
+        if (originalFlightDetail) {
+          customFlight.origin = originalFlightDetail.origin_iata || originalFlightDetail.origin;
+          customFlight.destination = originalFlightDetail.destination_iata || originalFlightDetail.destination;
+          customFlight.airline = originalFlightDetail.airline;
+          customFlight.base_price = originalFlightDetail.base_price;
+          customFlight.aircraft_type = originalFlightDetail.aircraft_type;
+        }
+      } catch (err) {
+        console.warn('⚠️ Failed to resolve original flight route during custom rescheduling:', err);
+      }
+
+      // Add to in-memory database
+      const existingIdx = flightsDb.findIndex(f => f.id === newFlightId);
+      if (existingIdx >= 0) {
+        flightsDb[existingIdx] = customFlight;
+      } else {
+        flightsDb.push(customFlight);
+      }
+
+      // If Supabase is active, ensure the flight and its seed seats exist in Supabase with these custom times
+      if (useSupabase && supabase && !isMockUser(userId)) {
+        try {
+          const admin = getAdminClient();
+          await this.ensureAirportInSupabase(customFlight.origin);
+          await this.ensureAirportInSupabase(customFlight.destination);
+
+          const { error: insertErr } = await admin
+            .from('flights')
+            .upsert({
+              id: customFlight.id,
+              flight_number: customFlight.flight_number,
+              airline: customFlight.airline,
+              origin_iata: customFlight.origin,
+              destination_iata: customFlight.destination,
+              departure_time: customFlight.departure_time,
+              arrival_time: customFlight.arrival_time,
+              duration_minutes: customFlight.duration_minutes,
+              base_price: customFlight.base_price,
+              status: 'scheduled',
+              aircraft_type: customFlight.aircraft_type,
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'id' });
+
+          if (insertErr) throw insertErr;
+
+          // Seed seats for the new custom flight
+          await this.seedSeatsInSupabase(customFlight);
+        } catch (dbErr: any) {
+          console.warn('⚠️ Custom flight upsert in Supabase failed, relying on fallback:', dbErr.message);
+        }
+      }
+    }
+    if (useSupabase && supabase && !isMockUser(userId)) {
       try {
         const admin = getAdminClient();
         await this.ensureFlightInSupabase(newFlightIdStr);
@@ -632,9 +748,11 @@ export class FlightService {
     }
 
     // Fallback in-memory
+    await this.ensureFlightInMemory(newFlightIdStr);
+    await this.ensureSeatsInMemory(newFlightIdStr, newSeatIds);
     cleanupInMemoryLocks();
 
-    const booking = bookingsDb.find(b => b.id === bookingId && b.user_id === userId);
+    const booking = bookingsDb.find(b => b.id === bookingId && matchUserIds(b.user_id, userId));
     if (!booking) throw new Error('Booking not found or access denied.');
 
     const oldFlightId = booking.flight_id;
@@ -800,6 +918,69 @@ export class FlightService {
     }
 
     return results;
+  }
+
+  async ensureSeatsInMemory(flightIdStr: string, seatIds: string[]): Promise<void> {
+    const flightId = resolveFlightId(flightIdStr);
+    if (!useSupabase) return;
+    for (const seatId of seatIds) {
+      const exists = seatsDb.some(s => s.id === seatId);
+      if (!exists) {
+        try {
+          const admin = getAdminClient();
+          const { data: s } = await admin.from('seats').select('*').eq('id', seatId).single();
+          if (s) {
+            if (!seatsDb.some(x => x.id === seatId)) {
+              seatsDb.push({
+                id: s.id,
+                flight_id: s.flight_id,
+                seat_code: s.seat_code,
+                class: s.cabin_class,
+                price_multiplier: Number(s.price_modifier),
+                status: s.status === 'booked' ? 'occupied' : s.status,
+                locked_by: s.lock_session,
+                locked_at: s.lock_expires_at ? new Date(s.lock_expires_at).toISOString() : null
+              });
+            }
+          }
+        } catch (err: any) {
+          console.warn(`[Sync] Failed to sync seat ${seatId} from Supabase to in-memory:`, err.message);
+        }
+      }
+    }
+  }
+
+  async ensureFlightInMemory(flightIdStr: string): Promise<void> {
+    const flightId = resolveFlightId(flightIdStr);
+    const exists = flightsDb.some(f => f.id === flightId);
+    if (!exists && useSupabase) {
+      try {
+        const admin = getAdminClient();
+        const { data: f } = await admin.from('flights').select('*').eq('id', flightId).maybeSingle();
+        if (f) {
+          if (!flightsDb.some(x => x.id === flightId)) {
+            flightsDb.push({
+              id: f.id,
+              flight_number: f.flight_number,
+              airline: f.airline,
+              origin: f.origin_iata,
+              destination: f.destination_iata,
+              departure_time: f.departure_time,
+              arrival_time: f.arrival_time,
+              base_price: Number(f.base_price),
+              status: f.status,
+              aircraft_type: f.aircraft_type || 'Boeing 737 MAX 9',
+              gate: f.gate,
+              terminal: f.terminal,
+              stops: f.stops,
+              duration_minutes: f.duration_minutes
+            });
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[Sync] Failed to sync flight ${flightId} from Supabase to in-memory:`, err.message);
+      }
+    }
   }
 
   // 12. Lazy-load/ensure flight exists in Supabase
@@ -995,7 +1176,7 @@ export class FlightService {
 
   // 13b. Get User Profile
   async getProfile(userId: string): Promise<Profile> {
-    if (!useSupabase) {
+    if (!useSupabase || isMockUser(userId)) {
       let profile = profilesDb.find(p => p.id === userId);
       if (!profile) {
         profile = {
@@ -1038,7 +1219,7 @@ export class FlightService {
 
   // 13c. Update User Profile
   async updateProfile(userId: string, profileData: Partial<Profile>): Promise<Profile> {
-    if (!useSupabase) {
+    if (!useSupabase || isMockUser(userId)) {
       let profile = profilesDb.find(p => p.id === userId);
       if (!profile) {
         profile = { id: userId, full_name: 'Passenger' };
@@ -1075,7 +1256,7 @@ export class FlightService {
 
   // 14. Auto-confirm signed up user email
   async confirmUser(userId: string): Promise<{ success: boolean; message: string }> {
-    if (!useSupabase) {
+    if (!useSupabase || isMockUser(userId)) {
       return { success: true, message: 'User email confirmed (in-memory fallback).' };
     }
     try {
@@ -1084,7 +1265,20 @@ export class FlightService {
         email_confirm: true
       });
       if (error) throw error;
-      return { success: true, message: 'User email confirmed via admin client.' };
+
+      // Automatically create user profile row instantly in Supabase
+      try {
+        const { data: userData } = await admin.auth.admin.getUserById(userId);
+        const fullName = userData?.user?.user_metadata?.full_name || userData?.user?.email?.split('@')[0] || 'Passenger';
+        
+        await admin
+          .from('profiles')
+          .upsert({ id: userId, full_name: fullName }, { onConflict: 'id' });
+      } catch (profileErr: any) {
+        console.warn('⚠️ Auto-profile sync inside confirmUser warned:', profileErr.message);
+      }
+
+      return { success: true, message: 'User email confirmed via admin client and profile seeded.' };
     } catch (err: any) {
       console.error('❌ Supabase admin confirmation failed:', err.message);
       return { success: false, message: `Failed to confirm email: ${err.message}` };

@@ -19,7 +19,7 @@ export interface CacheState {
   fetchUserBookings: () => Promise<void>;
   lookupBookingAndCache: (reference: string, email: string) => Promise<Booking | null>;
   cancelBooking: (bookingId: string) => Promise<boolean>;
-  rescheduleBooking: (bookingId: string, newFlightId: string, newSeatIds: string[], lockSession: string) => Promise<boolean>;
+  rescheduleBooking: (bookingId: string, newFlightId: string, newSeatIds: string[], lockSession: string, customDepartureTime?: string, customArrivalTime?: string) => Promise<boolean>;
   clearBookingActionError: () => void;
   saveBookingAsOfflineDraft: (userId: string | null) => void;
   syncOfflineDrafts: (reenteredPassports: Record<string, string>) => Promise<boolean>;
@@ -104,10 +104,10 @@ export const createCacheSlice: StateCreator<
     }
   },
 
-  rescheduleBooking: async (bookingId, newFlightId, newSeatIds, lockSession) => {
+  rescheduleBooking: async (bookingId, newFlightId, newSeatIds, lockSession, customDepartureTime, customArrivalTime) => {
     set({ bookingActionError: null });
     try {
-      await flightApiService.rescheduleBooking(bookingId, newFlightId, newSeatIds, lockSession);
+      await flightApiService.rescheduleBooking(bookingId, newFlightId, newSeatIds, lockSession, customDepartureTime, customArrivalTime);
 
       // Refresh server list
       get().fetchUserBookings();

@@ -10,7 +10,6 @@ import {
   AlertCircle, 
   Armchair, 
   XCircle, 
-  RefreshCw as SwapIcon, 
   WifiOff, 
   CheckCircle2, 
   ShieldAlert, 
@@ -122,6 +121,13 @@ function MyBookingsContent() {
   const [newSeats, setNewSeats] = useState<any[]>([]);
   const [selectedNewSeatId, setSelectedNewSeatId] = useState('');
   const [isProcessingReschedule, setIsProcessingReschedule] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [customDepTime, setCustomDepTime] = useState('');
+  const [customArrTime, setCustomArrTime] = useState('');
+  const [rescheduleSeats, setRescheduleSeats] = useState<Record<string, string>>({});
+  const [rescheduleConflictError, setRescheduleConflictError] = useState<string | null>(null);
+  const [rescheduleValidationError, setRescheduleValidationError] = useState<string | null>(null);
+  const [rescheduleSuccessMsg, setRescheduleSuccessMsg] = useState<string | null>(null);
 
   // Custom Cancellation modal state
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -190,74 +196,227 @@ function MyBookingsContent() {
     }
   };
 
+  // Fetch available flights for reschedule
+  const loadRescheduleFlights = async (booking: any, date: string) => {
+    try {
+      const origin = booking.flight?.origin_iata || booking.flight?.origin || 'JFK';
+      const destination = booking.flight?.destination_iata || booking.flight?.destination || 'LHR';
+      const flights = await flightApiService.searchFlights(origin, destination, date);
+      // Exclude current flight
+      setAvailableFlights(flights.filter((f: any) => f.id !== booking.flight_id));
+    } catch (e) {
+      console.error('Failed to fetch reschedule flight options:', e);
+      setAvailableFlights([]);
+    }
+  };
+
+  // Perform date, time, and conflict interval overlap validations
+  const validateAndCheckConflicts = (newDepISO: string, newArrISO: string) => {
+    setRescheduleConflictError(null);
+    setRescheduleValidationError(null);
+
+    const depTime = new Date(newDepISO).getTime();
+    const arrTime = new Date(newArrISO).getTime();
+    const now = Date.now();
+
+    if (isNaN(depTime) || isNaN(arrTime)) {
+      setRescheduleValidationError('⚠️ Please enter a valid date and time.');
+      return false;
+    }
+
+    if (depTime < now) {
+      setRescheduleValidationError('⚠️ Departure time must be in the future.');
+      return false;
+    }
+
+    if (arrTime <= depTime) {
+      setRescheduleValidationError('⚠️ Arrival time must be after the departure time.');
+      return false;
+    }
+
+    // Overlap Conflict Check
+    if (myBookings && myBookings.length > 0 && reschedulingBooking) {
+      const activeOtherBookings = myBookings.filter(
+        (b: any) => b.id !== reschedulingBooking.id && b.status !== 'cancelled'
+      );
+
+      for (const otherBooking of activeOtherBookings) {
+        if (otherBooking.flight?.departure_time && otherBooking.flight?.arrival_time) {
+          const otherStart = new Date(otherBooking.flight.departure_time).getTime();
+          const otherEnd = new Date(otherBooking.flight.arrival_time).getTime();
+
+          if (depTime < otherEnd && arrTime > otherStart) {
+            const conflictInfo = `${otherBooking.flight.flight_number} (${otherBooking.flight.origin}➔${otherBooking.flight.destination})`;
+            setRescheduleConflictError(
+              `⚠️ Schedule Conflict: Overlaps with your active booking for flight ${conflictInfo}.`
+            );
+            return false;
+          }
+        }
+      }
+    }
+
+    return true;
+  };
+
   // Load Reschedule Modal
   const handleOpenReschedule = async (booking: any) => {
     setReschedulingBooking(booking);
     setSelectedNewFlight(null);
     setNewSeats([]);
     setSelectedNewSeatId('');
+    setRescheduleSeats({});
+    setRescheduleConflictError(null);
+    setRescheduleValidationError(null);
+    setRescheduleSuccessMsg(null);
+
+    const flightDate = booking.flight?.departure_time
+      ? new Date(booking.flight.departure_time).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
     
-    // Fetch available reschedule flight candidates
-    try {
-      const flights = await flightApiService.searchFlights('', '', '');
-      // Exclude current flight
-      setAvailableFlights(flights.filter((f: any) => f.id !== booking.flight_id));
-    } catch (e) {
-      console.error(e);
+    setRescheduleDate(flightDate);
+
+    if (booking.flight?.departure_time) {
+      const depDate = new Date(booking.flight.departure_time);
+      const hours = String(depDate.getHours()).padStart(2, '0');
+      const mins = String(depDate.getMinutes()).padStart(2, '0');
+      setCustomDepTime(`${hours}:${mins}`);
+    } else {
+      setCustomDepTime('08:00');
     }
+
+    if (booking.flight?.arrival_time) {
+      const arrDate = new Date(booking.flight.arrival_time);
+      const hours = String(arrDate.getHours()).padStart(2, '0');
+      const mins = String(arrDate.getMinutes()).padStart(2, '0');
+      setCustomArrTime(`${hours}:${mins}`);
+    } else {
+      setCustomArrTime('14:00');
+    }
+
+    await loadRescheduleFlights(booking, flightDate);
     setShowRescheduleModal(true);
   };
 
-  // Load seats when a new flight is selected for reschedule
+  // Handle manual date or time modifications
+  const handleTimingChange = (date: string, depTime: string, arrTime: string) => {
+    setRescheduleDate(date);
+    setCustomDepTime(depTime);
+    setCustomArrTime(arrTime);
+
+    if (!date || !depTime || !arrTime) return;
+    const newDepISO = `${date}T${depTime}:00`;
+    const newArrISO = `${date}T${arrTime}:00`;
+    validateAndCheckConflicts(newDepISO, newArrISO);
+  };
+
+  // Handle selected flight changes
   const handleRescheduleFlightChange = async (flightId: string) => {
     const flight = availableFlights.find(f => f.id === flightId);
     setSelectedNewFlight(flight);
     setSelectedNewSeatId('');
+    setRescheduleSeats({});
+    setRescheduleValidationError(null);
+    setRescheduleConflictError(null);
 
-    try {
-      const seats = await flightApiService.getFlightSeats(flightId);
-      // Only available seats
-      setNewSeats(seats.filter((s: any) => s.status === 'available'));
-    } catch (e) {
-      console.error(e);
+    if (flight) {
+      const depDate = new Date(flight.departure_time);
+      const depHours = String(depDate.getHours()).padStart(2, '0');
+      const depMins = String(depDate.getMinutes()).padStart(2, '0');
+      setCustomDepTime(`${depHours}:${depMins}`);
+
+      const arrDate = new Date(flight.arrival_time);
+      const arrHours = String(arrDate.getHours()).padStart(2, '0');
+      const arrMins = String(arrDate.getMinutes()).padStart(2, '0');
+      setCustomArrTime(`${arrHours}:${arrMins}`);
+
+      validateAndCheckConflicts(flight.departure_time, flight.arrival_time);
+
+      try {
+        const seats = await flightApiService.getFlightSeats(flightId);
+        setNewSeats(seats.filter((s: any) => s.status === 'available'));
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      setNewSeats([]);
     }
   };
 
+  const handlePassengerSeatChange = (passengerId: string, seatId: string) => {
+    setRescheduleSeats(prev => ({
+      ...prev,
+      [passengerId]: seatId
+    }));
+  };
+
   const executeReschedule = async () => {
-    if (!reschedulingBooking || !selectedNewFlight || !selectedNewSeatId) return;
+    if (!reschedulingBooking || !selectedNewFlight) return;
 
     clearBookingActionError();
-    setIsProcessingReschedule(true);
-    // Temporary lock session for the new seat
-    const lockSession = 'reschedule-session-uuid-token';
-    const seat = newSeats.find(s => s.id === selectedNewSeatId);
-    
-    if (!seat) {
-      setIsProcessingReschedule(false);
+    setRescheduleValidationError(null);
+    setRescheduleSuccessMsg(null);
+
+    const newDepISO = `${rescheduleDate}T${customDepTime}:00`;
+    const newArrISO = `${rescheduleDate}T${customArrTime}:00`;
+
+    const isValid = validateAndCheckConflicts(newDepISO, newArrISO);
+    if (!isValid) return;
+
+    const passengerCount = reschedulingBooking.passengers?.length || 0;
+    const assignedSeats = Object.values(rescheduleSeats).filter(Boolean);
+
+    if (assignedSeats.length !== passengerCount) {
+      setRescheduleValidationError('⚠️ Please select a new seat assignment for all passengers.');
       return;
     }
 
-    // Attempt lock and reschedule
+    setIsProcessingReschedule(true);
+    const lockSession = 'reschedule-session-' + Date.now();
+
+    try {
+      const lockRes = await flightApiService.lockSeats(
+        selectedNewFlight.id,
+        assignedSeats,
+        lockSession
+      );
+      if (!lockRes.success) {
+        throw new Error('Some of the selected seats are already locked or occupied.');
+      }
+    } catch (e: any) {
+      setIsProcessingReschedule(false);
+      setRescheduleValidationError(`⚠️ Seat Lock Failed: ${e.message}`);
+      return;
+    }
+
+    const customTimingsChanged = 
+      new Date(selectedNewFlight.departure_time).getTime() !== new Date(newDepISO).getTime() ||
+      new Date(selectedNewFlight.arrival_time).getTime() !== new Date(newArrISO).getTime();
+
     const success = await rescheduleBooking(
       reschedulingBooking.id,
       selectedNewFlight.id,
-      [seat.id],
-      lockSession
+      assignedSeats,
+      lockSession,
+      customTimingsChanged ? newDepISO : undefined,
+      customTimingsChanged ? newArrISO : undefined
     );
 
     setIsProcessingReschedule(false);
     if (success) {
-      setShowRescheduleModal(false);
-      if (guestBooking?.id === reschedulingBooking.id) {
-        // Refresh guest details lookup
-        const result = await lookupBookingAndCache(guestBooking.booking_reference, guestBooking.contact_email);
-        setGuestBooking(result);
-      }
-      if (userId) {
-        fetchUserBookings();
-      }
+      setRescheduleSuccessMsg('🎉 Ticket successfully rescheduled!');
+      setTimeout(() => {
+        setShowRescheduleModal(false);
+        if (guestBooking?.id === reschedulingBooking.id) {
+          lookupBookingAndCache(guestBooking.booking_reference, guestBooking.contact_email).then(result => {
+            setGuestBooking(result);
+          });
+        }
+        if (userId) {
+          fetchUserBookings();
+        }
+      }, 1500);
     }
-    // On failure, bookingActionError is set in the store — displayed inside the modal
   };
 
   // Plain receipt downloader helper
@@ -406,7 +565,7 @@ during baggage check-in and security.
                 onClick={() => handleOpenReschedule(booking)}
                 className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white/5 border border-white/5 hover:border-primary-500/30 text-slate-300 hover:text-primary-400 transition"
               >
-                <SwapIcon className="h-3.5 w-3.5" />
+                <RefreshCw className="h-3.5 w-3.5" />
                 <span>Reschedule</span>
               </button>
               <button
@@ -700,78 +859,230 @@ during baggage check-in and security.
       {/* 2. RESCHEDULE MODAL PANEL */}
       {showRescheduleModal && reschedulingBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-md rounded-3xl glass-panel p-6 sm:p-8 border-white/5 animate-slide-up max-h-[85vh] overflow-y-auto">
+          <div className="w-full max-w-lg rounded-3xl glass-panel p-6 sm:p-8 border border-white/10 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
             
             <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
-              <h3 className="text-base font-bold text-white flex items-center space-x-2">
-                <SwapIcon className="h-4.5 w-4.5 text-primary-400" />
-                <span>Reschedule Booking Wizard</span>
+              <h3 className="text-base font-extrabold text-white flex items-center space-x-2.5">
+                <RefreshCw className="h-5 w-5 text-primary-400" />
+                <span>Premium Ticket Reschedule Wizard</span>
               </h3>
               <button 
                 onClick={() => setShowRescheduleModal(false)}
-                className="text-slate-400 hover:text-white text-2xl font-light"
+                className="text-slate-400 hover:text-white p-2 rounded-xl transition-all"
+                aria-label="Close modal"
               >
-                &times;
+                <XCircle className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Select New Flight</label>
-                <select
-                  onChange={(e) => handleRescheduleFlightChange(e.target.value)}
-                  className="form-input text-xs h-10 appearance-none bg-slate-900 border border-white/10 rounded-xl px-3 w-full"
-                >
-                  <option value="">-- Choose New Flight Schedule --</option>
-                  {availableFlights.map(f => (
-                    <option key={f.id} value={f.id}>
-                      {f.flight_number} ({f.origin}➔{f.destination}) - Base ₹{f.base_price}
-                    </option>
-                  ))}
-                </select>
+            <div className="space-y-5">
+              {/* Current Ticket Details Context */}
+              <div className="p-4 rounded-2xl bg-white/3 border border-white/5 space-y-2 text-xs">
+                <p className="font-extrabold text-slate-400 uppercase tracking-widest text-[9px]">Original Booking Reference: <span className="text-white font-mono text-xs font-bold tracking-widest">{reschedulingBooking.booking_reference}</span></p>
+                <p className="text-slate-400">Current Flight: <span className="text-white font-semibold">{reschedulingBooking.flight?.flight_number} ({reschedulingBooking.flight?.origin} ➔ {reschedulingBooking.flight?.destination})</span></p>
+                <p className="text-slate-400">Departure: <span className="text-white font-semibold">{new Date(reschedulingBooking.flight?.departure_time).toLocaleString()}</span></p>
+              </div>
+
+              {/* Date & Time Selectors */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Select New Date</label>
+                  <input
+                    type="date"
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                    value={rescheduleDate}
+                    onChange={(e) => {
+                      const d = e.target.value;
+                      setRescheduleDate(d);
+                      loadRescheduleFlights(reschedulingBooking, d);
+                      if (selectedNewFlight) {
+                        handleTimingChange(d, customDepTime, customArrTime);
+                      }
+                    }}
+                    className="form-input text-xs h-10 bg-slate-900 border border-white/10 rounded-xl px-3 w-full text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Select New Flight</label>
+                  <select
+                    onChange={(e) => handleRescheduleFlightChange(e.target.value)}
+                    className="form-input text-xs h-10 appearance-none bg-slate-900 border border-white/10 rounded-xl px-3 w-full text-white"
+                  >
+                    <option value="">-- Select Flight on this Date --</option>
+                    {availableFlights.map(f => (
+                      <option key={f.id} value={f.id}>
+                        {f.flight_number} ({f.origin}➔{f.destination}) — ₹{f.base_price}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               {selectedNewFlight && (
-                <div className="p-4 rounded-2xl bg-slate-900 border border-white/5 space-y-4">
-                  <div className="text-xs space-y-1">
-                    <p className="text-slate-400">Departure: <span className="text-white font-semibold">{new Date(selectedNewFlight.departure_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {formatDateFriendly(selectedNewFlight.departure_time)}</span></p>
-                    <p className="text-slate-400">Arrival: <span className="text-white font-semibold">{new Date(selectedNewFlight.arrival_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {formatDateFriendly(selectedNewFlight.arrival_time)}</span></p>
-                  </div>
+                <div className="space-y-4 animate-fade-in">
                   
-                  <div>
-                    <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Select New Seat</label>
-                    <select
-                      value={selectedNewSeatId}
-                      onChange={(e) => setSelectedNewSeatId(e.target.value)}
-                      className="form-input text-xs h-10 appearance-none bg-slate-900 border border-white/10 rounded-xl px-3 w-full"
-                    >
-                      <option value="">-- Choose Available Cabin Seat --</option>
-                      {newSeats.map(s => (
-                        <option key={s.id} value={s.id}>
-                          {s.seat_code} — {s.class} class (x{s.price_multiplier} multiplier)
-                        </option>
-                      ))}
-                    </select>
+                  {/* Time Customization Options */}
+                  <div className="p-4 rounded-2xl bg-slate-900 border border-white/5 space-y-4">
+                    <p className="text-[10px] font-bold text-primary-400 uppercase tracking-widest">Flight Timing Adjustments (Flexible Rescheduling)</p>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Departure Time</label>
+                        <input
+                          type="time"
+                          value={customDepTime}
+                          onChange={(e) => handleTimingChange(rescheduleDate, e.target.value, customArrTime)}
+                          className="form-input text-xs h-10 bg-slate-950 border border-white/10 rounded-xl px-3 w-full text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Arrival Time</label>
+                        <input
+                          type="time"
+                          value={customArrTime}
+                          onChange={(e) => handleTimingChange(rescheduleDate, customDepTime, e.target.value)}
+                          className="form-input text-xs h-10 bg-slate-950 border border-white/10 rounded-xl px-3 w-full text-white"
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Rescheduling flat fee warning */}
-                  <div className="p-3 rounded-xl bg-primary-500/5 border border-primary-500/10 text-[10px] text-primary-300 leading-relaxed">
-                    ⚙️ Rescheduling is subject to a flat change fee of <strong>{formatCurrency(1500)}</strong> + seat multipliers upgrades if applicable.
+                  {/* Seat Selection for all Passengers */}
+                  <div className="p-4 rounded-2xl bg-slate-900 border border-white/5 space-y-3">
+                    <p className="text-[10px] font-bold text-primary-400 uppercase tracking-widest">Assign Cabin Seats</p>
+                    {reschedulingBooking.passengers?.map((p: any, idx: number) => (
+                      <div key={p.id || idx} className="space-y-1.5">
+                        <p className="text-[11px] font-semibold text-slate-300">
+                          {idx + 1}. {p.first_name} {p.last_name} (Current: {p.seat?.seat_code})
+                        </p>
+                        <select
+                          value={rescheduleSeats[p.id] || ''}
+                          onChange={(e) => handlePassengerSeatChange(p.id, e.target.value)}
+                          className="form-input text-xs h-10 bg-slate-950 border border-white/10 rounded-xl px-3 w-full text-white"
+                        >
+                          <option value="">-- Choose Available Seat --</option>
+                          {newSeats.map(s => {
+                            const isTakenByAnother = Object.entries(rescheduleSeats).some(([pid, sid]) => pid !== p.id && sid === s.id);
+                            if (isTakenByAnother) return null;
+                            return (
+                              <option key={s.id} value={s.id}>
+                                {s.seat_code} — {s.class.toUpperCase()} Class (₹{Math.round(selectedNewFlight.base_price * s.price_multiplier)})
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                    ))}
                   </div>
+
+                  {/* Pricing Breakdown Summary Card */}
+                  {(() => {
+                    let totalNewSeatsCost = 0;
+                    let originalSeatsCost = 0;
+                    let totalUpgradeCost = 0;
+                    
+                    const basePrice = selectedNewFlight.base_price || 0;
+                    Object.values(rescheduleSeats).forEach(seatId => {
+                      const seatObj = newSeats.find(s => s.id === seatId);
+                      if (seatObj) {
+                        totalNewSeatsCost += basePrice * (seatObj.price_multiplier || 1.00);
+                      }
+                    });
+
+                    const origBasePrice = reschedulingBooking.flight?.base_price || 0;
+                    reschedulingBooking.passengers?.forEach((p: any) => {
+                      originalSeatsCost += origBasePrice * (p.seat?.price_multiplier || p.seat?.price_modifier || 1.00);
+                    });
+
+                    totalUpgradeCost = Math.max(0, totalNewSeatsCost - originalSeatsCost);
+                    const flatChangeFee = 1500;
+                    const grandTotal = flatChangeFee + totalUpgradeCost;
+
+                    return (
+                      <div className="p-4 rounded-2xl bg-primary-500/5 border border-primary-500/10 space-y-2 text-xs">
+                        <p className="font-bold text-white uppercase tracking-widest text-[9px]">Reschedule Summary Statement</p>
+                        <div className="space-y-1 text-slate-400">
+                          <div className="flex justify-between">
+                            <span>Reschedule Flat Processing Fee</span>
+                            <span className="text-white font-semibold">{formatCurrency(flatChangeFee)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Seat Class Upgrade Difference</span>
+                            <span className="text-white font-semibold">{formatCurrency(totalUpgradeCost)}</span>
+                          </div>
+                          <div className="border-t border-white/5 pt-1.5 mt-1.5 flex justify-between text-white font-extrabold text-sm">
+                            <span className="text-primary-400">Total Additional Charge</span>
+                            <span className="text-primary-400">{formatCurrency(grandTotal)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                 </div>
               )}
 
-              <button
-                onClick={executeReschedule}
-                disabled={isProcessingReschedule || !selectedNewSeatId}
-                className="w-full mt-4 py-2.5 rounded-xl font-bold bg-primary-500 hover:bg-primary-600 text-white shadow-lg text-xs flex items-center justify-center space-x-2 transition"
-              >
-                {isProcessingReschedule ? (
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                ) : (
-                  <span>Confirm Schedule Change</span>
-                )}
-              </button>
+              {/* Feedback Alerts */}
+              {rescheduleValidationError && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400 flex items-start space-x-1.5 animate-shake">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{rescheduleValidationError}</span>
+                </div>
+              )}
+
+              {rescheduleConflictError && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-400 flex items-start space-x-1.5">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>{rescheduleConflictError}</span>
+                </div>
+              )}
+
+              {bookingActionError && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400 flex items-start space-x-1.5 animate-shake">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{bookingActionError}</span>
+                </div>
+              )}
+
+              {rescheduleSuccessMsg && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 flex items-center space-x-1.5">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+                  <span>{rescheduleSuccessMsg}</span>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex items-center space-x-3 pt-3 border-t border-white/5">
+                <button
+                  onClick={() => setShowRescheduleModal(false)}
+                  disabled={isProcessingReschedule}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-white/5 border border-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeReschedule}
+                  disabled={
+                    isProcessingReschedule || 
+                    !selectedNewFlight || 
+                    Object.values(rescheduleSeats).filter(Boolean).length !== (reschedulingBooking.passengers?.length || 0) ||
+                    !!rescheduleValidationError ||
+                    !!rescheduleConflictError
+                  }
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-primary-500 hover:bg-primary-600 text-white shadow-lg disabled:opacity-30 disabled:cursor-not-allowed transition flex items-center justify-center space-x-2"
+                >
+                  {isProcessingReschedule ? (
+                    <>
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      <span>Processing Timing Shift...</span>
+                    </>
+                  ) : (
+                    <span>Confirm Reschedule</span>
+                  )}
+                </button>
+              </div>
             </div>
 
           </div>
