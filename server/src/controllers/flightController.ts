@@ -173,11 +173,12 @@ export class FlightController {
   // 10. Search Airports Autocomplete
   async searchAirports(req: Request, res: Response, next: NextFunction) {
     try {
-      const { q } = req.query;
-      if (!q) {
-        return res.status(400).json({ error: 'Search query parameter "q" is required.' });
+      // Accept both 'q' and 'query' as the search term for backward compatibility
+      const searchTerm = (req.query.q as string) || (req.query.query as string);
+      if (!searchTerm) {
+        return res.status(400).json({ error: 'Search query parameter "q" or "query" is required.' });
       }
-      const results = await flightService.searchAirports(q as string);
+      const results = await flightService.searchAirports(searchTerm);
       return res.json(results);
     } catch (error) {
       next(error);

@@ -30,7 +30,7 @@ export class StorageSyncManager {
     }
 
     for (const draft of drafts) {
-      const { temp_ref, flight_id, user_id, contact_email, contact_phone, passengers } = draft;
+      const { temp_ref, flight_id, user_id, contact_email, contact_phone, total_price, passengers } = draft;
       try {
         console.log(`🔄 Reconciling draft booking ${temp_ref} for user ${user_id}...`);
 
@@ -53,6 +53,7 @@ export class StorageSyncManager {
           p_user_id: user_id,
           p_contact_email: contact_email,
           p_contact_phone: contact_phone,
+          p_total_price: total_price || 0,
           p_lock_session: lockSession,
           p_passengers: passengers.map((p: any) => ({
             first_name: p.first_name,

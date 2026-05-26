@@ -139,6 +139,8 @@ export const createAuthSlice: StateCreator<
 
   /**
    * Fetches the user profile details from the backend.
+   * If the fetch fails (e.g. offline, database connection loss), falls back gracefully
+   * to the local storage cached profile while flagging the connection error.
    */
   fetchUserProfile: async () => {
     const token = get().authToken;
@@ -151,31 +153,62 @@ export const createAuthSlice: StateCreator<
       set({ userProfile: profile, isLoadingProfile: false });
       return profile;
     } catch (err: any) {
-      set({ profileError: err.message || 'Failed to load profile.', isLoadingProfile: false });
-      return null;
+      console.warn('⚠️ Network or database connection loss while fetching profile. Using cached data:', err.message);
+      const cachedProfile = get().userProfile;
+      set({ 
+        profileError: err.message || 'Database connection loss', 
+        isLoadingProfile: false 
+      });
+      return cachedProfile;
     }
   },
 
   /**
    * Updates user emergency contact, passport details, nationality, etc.
+   * Uses optimistic updates: writes to the local store (and thus localStorage) immediately,
+   * then attempts to sync with the server. If the sync fails (offline/network error),
+   * the local changes are retained and a warning is displayed.
    */
   updateUserProfile: async (profileData) => {
     const token = get().authToken;
     const userId = get().userId;
     if (!token || !userId) return false;
 
-    set({ isLoadingProfile: true, profileError: null });
+    // Save previous state for fallback/comparison
+    const previousProfile = get().userProfile;
+
+    // 1. Optimistic Update: Update Zustand store immediately so it writes to localStorage
+    const optimisticProfile = {
+      ...(previousProfile || { id: userId, full_name: 'Passenger' }),
+      ...profileData,
+      updated_at: new Date().toISOString(),
+    } as Profile;
+
+    set({
+      userProfile: optimisticProfile,
+      userName: optimisticProfile.full_name || get().userName,
+      isLoadingProfile: true,
+      profileError: null,
+    });
+
     try {
       const updated = await flightApiService.updateProfile(profileData);
+      // Sync with the actual server-returned data
       set({
         userProfile: updated,
-        userName: updated.full_name, // Sync general name
+        userName: updated.full_name,
         isLoadingProfile: false,
+        profileError: null,
       });
       return true;
     } catch (err: any) {
-      set({ profileError: err.message || 'Failed to update profile.', isLoadingProfile: false });
-      return false;
+      // 2. Offline Boundary Resilience: Keep local changes but flag the sync error
+      console.warn('⚠️ Network or database connection loss while saving profile. Retaining offline cache:', err.message);
+      set({
+        isLoadingProfile: false,
+        profileError: `Offline: Saved locally. Failed to sync with server (${err.message || 'Connection lost'}).`,
+      });
+      return true;
     }
   },
 
